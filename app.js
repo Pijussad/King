@@ -25,7 +25,7 @@ const selectors = {
   newsList: '#news-list',
   newsStatus: '#news-status',
   refreshNews: '#refresh-news-btn',
-  adUnits: '.adsbygoogle'
+  adUnits: '.news-ad .adsbygoogle'
 };
 
 function init() {
