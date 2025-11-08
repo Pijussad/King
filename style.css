@@ -358,4 +358,18 @@ blockquote::before {
     bottom: 16px;
     width: calc(100% - 24px);
   }
+
+  #chat-form {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  #chat-input {
+    flex: 1 1 100%;
+  }
+
+  #chat-form button {
+    flex: 1 1 auto;
+    padding: 10px 16px;
+  }
 }
