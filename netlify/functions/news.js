@@ -110,7 +110,28 @@ Return a JSON object with an \'entries\' array of strings. Do not include any ad
       parsed = { entries: [String(content).trim()] };
     }
 
-    const entries = Array.isArray(parsed.entries) ? parsed.entries.map(String) : [String(parsed.entries ?? '').trim()].filter(Boolean);
+    let entries = [];
+
+    if (Array.isArray(parsed.entries)) {
+      entries = parsed.entries.map(String);
+    } else if (Array.isArray(parsed)) {
+      entries = parsed.map(String);
+    } else if (parsed && typeof parsed === 'object') {
+      entries = Object.values(parsed)
+        .flatMap(value => (Array.isArray(value) ? value : [value]))
+        .map(String);
+    } else if (parsed) {
+      entries = [String(parsed)];
+    }
+
+    entries = entries.map(entry => entry.trim()).filter(Boolean);
+
+    if (!entries.length) {
+      const fallback = String(content).trim();
+      if (fallback) {
+        entries = [fallback];
+      }
+    }
 
     return {
       statusCode: 200,

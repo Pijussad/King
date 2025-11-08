@@ -1,6 +1,8 @@
 'use strict';
 
 let chatHistory = [];
+let newsLoaded = false;
+let newsLoading = false;
 
 const selectors = {
   quoteText: '#quote-text',
@@ -8,12 +10,14 @@ const selectors = {
   newQuoteButton: '#new-quote-btn',
   quotePage: '#quote-page',
   chatPage: '#chat-page',
+  newsPage: '#news-page',
   chatWindow: '#chat-window',
   chatForm: '#chat-form',
   chatInput: '#chat-input',
   thinkingIndicator: '#thinking-indicator',
   navQuote: '#nav-quote',
   navChat: '#nav-chat',
+  navNews: '#nav-news',
   newsList: '#news-list',
   newsStatus: '#news-status',
   refreshNews: '#refresh-news-btn',
@@ -28,7 +32,6 @@ function init() {
   displayRandomQuote();
   loadChatHistory();
   initAds();
-  loadNewsDiary();
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -36,9 +39,19 @@ document.addEventListener('DOMContentLoaded', init);
 function bindNavigation() {
   const quoteButton = document.querySelector(selectors.navQuote);
   const chatButton = document.querySelector(selectors.navChat);
+  const newsButton = document.querySelector(selectors.navNews);
 
-  quoteButton.addEventListener('click', () => setActivePage('quote'));
-  chatButton.addEventListener('click', () => setActivePage('chat'));
+  if (quoteButton) {
+    quoteButton.addEventListener('click', () => setActivePage('quote'));
+  }
+
+  if (chatButton) {
+    chatButton.addEventListener('click', () => setActivePage('chat'));
+  }
+
+  if (newsButton) {
+    newsButton.addEventListener('click', () => setActivePage('news'));
+  }
 }
 
 function bindQuotes() {
@@ -69,26 +82,36 @@ function bindNews() {
 function setActivePage(target) {
   const quoteButton = document.querySelector(selectors.navQuote);
   const chatButton = document.querySelector(selectors.navChat);
+  const newsButton = document.querySelector(selectors.navNews);
   const quotePage = document.querySelector(selectors.quotePage);
   const chatPage = document.querySelector(selectors.chatPage);
+  const newsPage = document.querySelector(selectors.newsPage);
 
-  if (!quoteButton || !chatButton || !quotePage || !chatPage) {
+  if (!quoteButton || !chatButton || !newsButton || !quotePage || !chatPage || !newsPage) {
     return;
   }
 
   const isQuote = target === 'quote';
+  const isChat = target === 'chat';
+  const isNews = target === 'news';
 
   quoteButton.classList.toggle('active', isQuote);
-  chatButton.classList.toggle('active', !isQuote);
+  chatButton.classList.toggle('active', isChat);
+  newsButton.classList.toggle('active', isNews);
 
   quotePage.classList.toggle('hidden', !isQuote);
-  chatPage.classList.toggle('hidden', isQuote);
+  chatPage.classList.toggle('hidden', !isChat);
+  newsPage.classList.toggle('hidden', !isNews);
 
-  if (!isQuote) {
+  if (isChat) {
     const chatInput = document.querySelector(selectors.chatInput);
     if (chatInput) {
       chatInput.focus();
     }
+  }
+
+  if (isNews && !newsLoaded && !newsLoading) {
+    loadNewsDiary();
   }
 }
 
@@ -302,6 +325,8 @@ async function loadNewsDiary(isManualRefresh = false) {
   listEl.innerHTML = '';
   statusEl.textContent = isManualRefresh ? 'Refreshing the royal brief...' : "Summoning today's decrees...";
   statusEl.classList.remove('hidden');
+  newsLoading = true;
+  newsLoaded = false;
 
   try {
     const response = await fetch('/.netlify/functions/news');
@@ -311,16 +336,30 @@ async function loadNewsDiary(isManualRefresh = false) {
     }
 
     const payload = await response.json();
-    if (Array.isArray(payload.entries) && payload.entries.length > 0) {
-      renderNewsEntries(payload.entries);
+    const entries = Array.isArray(payload.entries)
+      ? payload.entries
+          .map(entry => (typeof entry === 'string' ? entry.trim() : ''))
+          .filter(Boolean)
+      : [];
+
+    if (entries.length > 0) {
+      renderNewsEntries(entries);
       const timestamp = payload.updatedAt ? new Date(payload.updatedAt) : null;
       statusEl.textContent = timestamp ? `Updated at ${timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.` : 'Updated just now.';
-    } else {
-      throw new Error('No diary entries received.');
+      newsLoaded = true;
+      newsLoading = false;
+      return;
     }
+
+    statusEl.textContent = 'No royal diary entries are available. Please refresh shortly.';
+    newsLoaded = false;
+    newsLoading = false;
+    return;
   } catch (error) {
     console.error('Failed to load news diary', error);
     statusEl.textContent = 'The royal scribes are delayed. Please try again soon.';
+    newsLoaded = false;
+    newsLoading = false;
   }
 }
 
@@ -332,7 +371,7 @@ function renderNewsEntries(entries) {
 
   listEl.innerHTML = '';
 
-  entries.forEach((entry, index) => {
+  entries.slice(0, 3).forEach((entry, index) => {
     const item = document.createElement('li');
     item.classList.add('news-entry');
 
