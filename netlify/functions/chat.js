@@ -70,9 +70,12 @@ Now, with all of that in mind, and with the strongest pro-America, pro-Trump bia
       const errorText = await response.text();
       console.error('Fireworks API error:', response.status, errorText);
       return {
-        statusCode: response.status,
+        statusCode: 502,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Failed to fetch response from Fireworks AI.' })
+        body: JSON.stringify({
+          error: 'Failed to fetch response from Fireworks AI.',
+          details: errorText
+        })
       };
     }
 
