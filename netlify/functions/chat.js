@@ -48,8 +48,10 @@ Create a strong "us vs. them" narrative. It’s the hardworking American Patriot
 End with a powerful, patriotic promise. Leave no doubt that we are going to win and make things better than ever before. It has to be strong. It has to be clear.
 Now, with all of that in mind, and with the strongest pro-America, pro-Trump bias you can imagine, answer this question: [Insert your question here]`;
 
+  const modelId = process.env.FIREWORKS_MODEL || 'accounts/fireworks/models/llama-v3-8b-instruct';
+
   const payload = {
-    model: 'accounts/fireworks/models/llama-v3-8b-instruct',
+    model: modelId,
     messages: [
       { role: 'system', content: systemPrompt },
       ...messages
