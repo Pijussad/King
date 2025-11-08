@@ -66,15 +66,33 @@
         <div class="ad-slot network-ad">
           <div class="network-wrapper">
             <script type="text/javascript">
-              atOptions = {
-                key: '45517be8074ddd52b05cd15a47c44b4d',
-                format: 'iframe',
-                height: 250,
-                width: 300,
-                params: {}
-              };
+              (function () {
+                window.atOptions = {
+                  key: '45517be8074ddd52b05cd15a47c44b4d',
+                  format: 'iframe',
+                  height: 250,
+                  width: 300,
+                  params: {}
+                };
+
+                var localHosts = ['localhost', '127.0.0.1', '0.0.0.0'];
+                if (localHosts.indexOf(window.location.hostname) !== -1) {
+                  console.info('Network ad disabled in local environment.');
+                  return;
+                }
+
+                var script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = 'https://www.highperformanceformat.com/45517be8074ddd52b05cd15a47c44b4d/invoke.js';
+                script.async = true;
+                var current = document.currentScript;
+                if (current && current.parentNode) {
+                  current.parentNode.appendChild(script);
+                } else {
+                  document.body.appendChild(script);
+                }
+              })();
             </script>
-            <script type="text/javascript" src="https://www.highperformanceformat.com/45517be8074ddd52b05cd15a47c44b4d/invoke.js"></script>
           </div>
         </div>
       </section>

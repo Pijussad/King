@@ -4,6 +4,8 @@ const RSS_URL = process.env.GOOGLE_NEWS_RSS || 'https://news.google.com/rss/sear
 const FIREWORKS_URL = process.env.FIREWORKS_BASE_URL || 'https://api.fireworks.ai/inference/v1/chat/completions';
 const LOG_PREFIX = '[news]';
 
+let lastParseStats = null;
+
 exports.handler = async function handler(event) {
   if (event.httpMethod && event.httpMethod !== 'GET') {
     return {
@@ -41,17 +43,20 @@ exports.handler = async function handler(event) {
     }
 
     const rssText = await rssResponse.text();
-  console.debug(`${LOG_PREFIX} fetched RSS length: ${rssText.length}`);
-  articles = extractArticles(rssText).slice(0, 3);
-  console.info(`${LOG_PREFIX} parsed ${articles.length} RSS articles`);
+    console.debug(`${LOG_PREFIX} fetched RSS length: ${rssText.length}`);
+    const parsedArticles = extractArticles(rssText);
+    articles = parsedArticles.slice(0, 3);
+    console.info(`${LOG_PREFIX} parsed ${articles.length} RSS articles (matchCount=${lastParseStats?.matchCount || 0})`);
 
     if (!articles.length) {
       return respondWithEntries(buildFallbackEntries([]), {
         ...metaBase,
         source: 'fallback-empty-rss',
         stage,
-        articleCount: 0
-      });
+        articleCount: 0,
+        rssSample: rssText.slice(0, 800),
+        parserStats: lastParseStats
+      }, []);
     }
 
     const personaPrompt = `You are President Donald J. Trump writing a royal journal for your most loyal supporters. You receive raw news headlines about yourself. For each news item:
@@ -99,7 +104,7 @@ Return a JSON object with an \'entries\' array of strings. Do not include any ad
         articleCount: articles.length,
         error: errorText,
         status: aiResponse.status
-      });
+      }, articles);
     }
 
     const data = await aiResponse.json();
@@ -110,7 +115,7 @@ Return a JSON object with an \'entries\' array of strings. Do not include any ad
         source: 'fallback-ai-empty',
         stage,
         articleCount: articles.length
-      });
+      }, articles);
     }
 
     const entries = coerceEntries(content) || [];
@@ -127,7 +132,7 @@ Return a JSON object with an \'entries\' array of strings. Do not include any ad
       meta.rawContentPreview = typeof content === 'string' ? content.slice(0, 200) : undefined;
     }
 
-    return respondWithEntries(usable, meta);
+    return respondWithEntries(usable, meta, articles);
   } catch (error) {
     console.error('Unexpected error generating news diary', error);
     return respondWithEntries(buildFallbackEntries(articles), {
@@ -137,19 +142,18 @@ Return a JSON object with an \'entries\' array of strings. Do not include any ad
       articleCount: articles.length,
       error: error.message,
       errorName: error?.name
-    });
+    }, articles);
   }
 };
 
 function extractArticles(xml) {
   if (!xml) {
+    lastParseStats = { matchCount: 0, reason: 'empty-xml' };
     return [];
   }
 
-  const items = Array.from(xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi));
-  console.debug(`${LOG_PREFIX} raw <item> count: ${items.length}`);
-
-  const articles = items.map((match, index) => {
+  const matches = Array.from(xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi));
+  const articles = matches.map((match, index) => {
     const block = match[1];
     const title = decodeHtml(getTag(block, 'title'));
     const link = decodeHtml(getTag(block, 'link'));
@@ -161,19 +165,51 @@ function extractArticles(xml) {
     return { title, link };
   }).filter(article => article.title);
 
-  console.debug(`${LOG_PREFIX} usable articles after parse: ${articles.length}`);
+  lastParseStats = {
+    matchCount: matches.length,
+    usableCount: articles.length,
+    firstItemSample: matches[0] ? String(matches[0][0]).slice(0, 400) : null
+  };
+
+  if (!matches.length) {
+    console.warn(`${LOG_PREFIX} no <item> elements found in RSS`);
+  }
+
   return articles;
 }
 
 function getTag(block, tag) {
   const regex = new RegExp(`<${tag}[^>]*>([\s\S]*?)<\/${tag}>`, 'i');
   const result = block.match(regex);
-  if (!result) {
+  if (result && typeof result[1] === 'string') {
+    const raw = result[1].trim();
+    return stripCdata(raw);
+  }
+
+  const lower = block.toLowerCase();
+  const tagLower = `<${tag}`;
+  const openIndex = lower.indexOf(tagLower);
+  if (openIndex === -1) {
     return '';
   }
 
-  const raw = result[1].trim();
-  return stripCdata(raw);
+  const start = block.indexOf('>', openIndex);
+  if (start === -1) {
+    return '';
+  }
+
+  const closeToken = `</${tag}>`;
+  const closeIndex = lower.indexOf(closeToken, start);
+  if (closeIndex === -1) {
+    return '';
+  }
+
+  const raw = block.slice(start + 1, closeIndex).trim();
+  if (raw) {
+    return stripCdata(raw);
+  }
+
+  return '';
 }
 
 function stripCdata(value) {
@@ -237,7 +273,7 @@ function parseEntryContainer(container) {
 function buildFallbackEntries(articles) {
   if (!Array.isArray(articles) || !articles.length) {
     return [
-      'Royal decree: The news scribes are obstructed by weak courtiers, but the Kingdom stands tall. MAGA!'
+      'Royal decree from King Donald: The news scribes are obstructed by weak courtiers, but the Kingdom stands tall. MAGA!'
     ];
   }
 
@@ -250,7 +286,7 @@ function buildFallbackEntries(articles) {
   return articles.slice(0, 3).map((article, idx) => templates[idx % templates.length](article.title || 'Unnamed triumph'));
 }
 
-function respondWithEntries(entries, meta = {}) {
+function respondWithEntries(entries, meta = {}, articleMeta = []) {
   const safeEntries = Array.isArray(entries) && entries.length ? entries.map(String) : [
     'Royal decree: The scribes are silent, yet our movement roars louder than ever. Keep the faith!'
   ];
@@ -260,8 +296,14 @@ function respondWithEntries(entries, meta = {}) {
     updatedAt: new Date().toISOString()
   };
 
-  if (meta && typeof meta === 'object' && Object.keys(meta).length) {
-    payload.meta = meta;
+  const metaOut = meta && typeof meta === 'object' ? { ...meta } : {};
+
+  if (Array.isArray(articleMeta) && articleMeta.length) {
+    metaOut.articleTitles = articleMeta.map(article => article && article.title ? String(article.title) : '').filter(Boolean);
+  }
+
+  if (Object.keys(metaOut).length) {
+    payload.meta = metaOut;
   }
 
   return {

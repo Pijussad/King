@@ -6,6 +6,7 @@ let newsLoading = false;
 let adReinitTimer = null;
 
 const MAX_AD_ATTEMPTS = 3;
+const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
 const selectors = {
   quoteText: '#quote-text',
@@ -306,6 +307,11 @@ function scheduleAdRefresh(immediate = false) {
     return;
   }
 
+  if (adsAreDisabled()) {
+    hideAdSlots('Local development environment detected; ads disabled.');
+    return;
+  }
+
   if (immediate) {
     initAds();
     return;
@@ -323,6 +329,11 @@ function scheduleAdRefresh(immediate = false) {
 
 function initAds() {
   if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (adsAreDisabled()) {
+    hideAdSlots('Local development environment detected; ads disabled.');
     return;
   }
 
@@ -397,6 +408,26 @@ function isElementVisible(element) {
   return element.getClientRects().length > 0;
 }
 
+function adsAreDisabled() {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+
+  const host = window.location.hostname;
+  return LOCALHOST_HOSTNAMES.has(host);
+}
+
+function hideAdSlots(reason) {
+  const adContainers = document.querySelectorAll('.ad-slot');
+  adContainers.forEach(container => {
+    container.style.display = 'none';
+  });
+
+  if (reason) {
+    console.info(`Ad slots hidden: ${reason}`);
+  }
+}
+
 async function loadNewsDiary(isManualRefresh = false) {
   const listEl = document.querySelector(selectors.newsList);
   const statusEl = document.querySelector(selectors.newsStatus);
@@ -424,6 +455,7 @@ async function loadNewsDiary(isManualRefresh = false) {
     if (meta) {
       console.info('News diary meta:', meta);
     }
+    const headings = Array.isArray(meta?.articleTitles) ? meta.articleTitles : [];
     const entries = Array.isArray(payload.entries)
       ? payload.entries
           .map(entry => (typeof entry === 'string' ? entry.trim() : ''))
@@ -431,7 +463,7 @@ async function loadNewsDiary(isManualRefresh = false) {
       : [];
 
     if (entries.length > 0) {
-      renderNewsEntries(entries);
+      renderNewsEntries(entries, headings);
       const timestamp = payload.updatedAt ? new Date(payload.updatedAt) : null;
       statusEl.textContent = timestamp ? `Updated at ${timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.` : 'Updated just now.';
       if (meta && meta.source && meta.source !== 'ai') {
@@ -466,7 +498,7 @@ async function loadNewsDiary(isManualRefresh = false) {
   }
 }
 
-function renderNewsEntries(entries) {
+function renderNewsEntries(entries, headings = []) {
   const listEl = document.querySelector(selectors.newsList);
   if (!listEl) {
     return;
@@ -479,7 +511,8 @@ function renderNewsEntries(entries) {
     item.classList.add('news-entry');
 
     const heading = document.createElement('h3');
-    heading.textContent = `Entry ${index + 1}`;
+    const title = Array.isArray(headings) && headings[index] ? headings[index] : '';
+    heading.textContent = title ? `Entry ${index + 1} · ${title}` : `Entry ${index + 1}`;
 
     const paragraph = document.createElement('p');
     paragraph.textContent = typeof entry === 'string' ? entry : '';
