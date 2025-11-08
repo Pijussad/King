@@ -84,6 +84,9 @@ body::before {
 
 .page-section {
   min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .quote-card {
@@ -258,6 +261,104 @@ blockquote::before {
   box-shadow: 0 16px 26px rgba(212, 175, 55, 0.45);
 }
 
+.ad-slot {
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 16px;
+  padding: 8px;
+  background: rgba(17, 17, 17, 0.6);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.ad-slot.top-ad {
+  margin-bottom: 16px;
+}
+
+.ad-slot.inline-ad {
+  margin-top: 8px;
+}
+
+.ad-slot.chat-ad {
+  margin-top: 20px;
+}
+
+.news-section {
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(17, 17, 17, 0.7));
+  box-shadow: 0 16px 26px rgba(0, 0, 0, 0.35);
+}
+
+.news-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.news-header h2 {
+  font-family: 'Playfair Display', 'Times New Roman', serif;
+  font-size: 1.4rem;
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+#refresh-news-btn {
+  border: 1px solid var(--gold);
+  background: transparent;
+  color: var(--gold);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+#refresh-news-btn:hover {
+  background: var(--gold);
+  color: #111111;
+  transform: translateY(-1px);
+}
+
+.news-status {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: rgba(245, 245, 245, 0.72);
+}
+
+.news-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.news-entry {
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(17, 17, 17, 0.75);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35);
+}
+
+.news-entry h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+}
+
+.news-entry p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .thinking {
   margin: 16px 0 0;
   display: flex;
@@ -370,6 +471,10 @@ blockquote::before {
     font-size: 0.8rem;
   }
 
+  .page-section {
+    gap: 18px;
+  }
+
   .chat-window {
     height: 280px;
   }
@@ -377,6 +482,17 @@ blockquote::before {
   #bottom-nav {
     bottom: 8px;
     width: calc(100% - 16px);
+  }
+
+  .news-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  #refresh-news-btn {
+    width: 100%;
+    text-align: center;
   }
 
   #chat-form {

@@ -13,15 +13,22 @@ const selectors = {
   chatInput: '#chat-input',
   thinkingIndicator: '#thinking-indicator',
   navQuote: '#nav-quote',
-  navChat: '#nav-chat'
+  navChat: '#nav-chat',
+  newsList: '#news-list',
+  newsStatus: '#news-status',
+  refreshNews: '#refresh-news-btn',
+  adUnits: '.adsbygoogle'
 };
 
 function init() {
   bindNavigation();
   bindQuotes();
   bindChat();
+  bindNews();
   displayRandomQuote();
   loadChatHistory();
+  initAds();
+  loadNewsDiary();
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -48,6 +55,15 @@ function bindChat() {
   }
 
   chatForm.addEventListener('submit', handleChatSubmit);
+}
+
+function bindNews() {
+  const refreshButton = document.querySelector(selectors.refreshNews);
+  if (!refreshButton) {
+    return;
+  }
+
+  refreshButton.addEventListener('click', () => loadNewsDiary(true));
 }
 
 function setActivePage(target) {
@@ -252,4 +268,82 @@ async function getKingResponse() {
     role: 'assistant',
     content: payload.reply.trim()
   };
+}
+
+function initAds() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const adElements = document.querySelectorAll(selectors.adUnits);
+  if (!adElements.length) {
+    return;
+  }
+
+  window.adsbygoogle = window.adsbygoogle || [];
+
+  adElements.forEach(() => {
+    try {
+      window.adsbygoogle.push({});
+    } catch (error) {
+      console.warn('AdSense push failed', error);
+    }
+  });
+}
+
+async function loadNewsDiary(isManualRefresh = false) {
+  const listEl = document.querySelector(selectors.newsList);
+  const statusEl = document.querySelector(selectors.newsStatus);
+
+  if (!listEl || !statusEl) {
+    return;
+  }
+
+  listEl.innerHTML = '';
+  statusEl.textContent = isManualRefresh ? 'Refreshing the royal brief...' : "Summoning today's decrees...";
+  statusEl.classList.remove('hidden');
+
+  try {
+    const response = await fetch('/.netlify/functions/news');
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Request failed: ${response.status} ${errorText}`);
+    }
+
+    const payload = await response.json();
+    if (Array.isArray(payload.entries) && payload.entries.length > 0) {
+      renderNewsEntries(payload.entries);
+      const timestamp = payload.updatedAt ? new Date(payload.updatedAt) : null;
+      statusEl.textContent = timestamp ? `Updated at ${timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.` : 'Updated just now.';
+    } else {
+      throw new Error('No diary entries received.');
+    }
+  } catch (error) {
+    console.error('Failed to load news diary', error);
+    statusEl.textContent = 'The royal scribes are delayed. Please try again soon.';
+  }
+}
+
+function renderNewsEntries(entries) {
+  const listEl = document.querySelector(selectors.newsList);
+  if (!listEl) {
+    return;
+  }
+
+  listEl.innerHTML = '';
+
+  entries.forEach((entry, index) => {
+    const item = document.createElement('li');
+    item.classList.add('news-entry');
+
+    const heading = document.createElement('h3');
+    heading.textContent = `Entry ${index + 1}`;
+
+    const paragraph = document.createElement('p');
+    paragraph.textContent = typeof entry === 'string' ? entry : '';
+
+    item.appendChild(heading);
+    item.appendChild(paragraph);
+    listEl.appendChild(item);
+  });
 }
