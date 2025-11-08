@@ -282,6 +282,12 @@ blockquote::before {
   box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3);
 }
 
+.ad-slot .adsbygoogle {
+  display: block !important;
+  width: 100% !important;
+  min-height: 120px;
+}
+
 .ad-slot.top-ad {
   margin-bottom: 16px;
 }

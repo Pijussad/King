@@ -3,6 +3,9 @@
 let chatHistory = [];
 let newsLoaded = false;
 let newsLoading = false;
+let adReinitTimer = null;
+
+const MAX_AD_ATTEMPTS = 3;
 
 const selectors = {
   quoteText: '#quote-text',
@@ -32,6 +35,9 @@ function init() {
   displayRandomQuote();
   loadChatHistory();
   initAds();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', scheduleAdRefresh);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -113,6 +119,8 @@ function setActivePage(target) {
   if (isNews && !newsLoaded && !newsLoading) {
     loadNewsDiary();
   }
+
+  scheduleAdRefresh();
 }
 
 function displayRandomQuote() {
@@ -293,6 +301,26 @@ async function getKingResponse() {
   };
 }
 
+function scheduleAdRefresh(immediate = false) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (immediate) {
+    initAds();
+    return;
+  }
+
+  if (adReinitTimer) {
+    clearTimeout(adReinitTimer);
+  }
+
+  adReinitTimer = window.setTimeout(() => {
+    adReinitTimer = null;
+    initAds();
+  }, 400);
+}
+
 function initAds() {
   if (typeof window === 'undefined') {
     return;
@@ -305,13 +333,68 @@ function initAds() {
 
   window.adsbygoogle = window.adsbygoogle || [];
 
-  adElements.forEach(() => {
-    try {
-      window.adsbygoogle.push({});
-    } catch (error) {
-      console.warn('AdSense push failed', error);
+  adElements.forEach(adElement => requestAdLoad(adElement));
+}
+
+function requestAdLoad(adElement, attempt = 0) {
+  if (!adElement) {
+    return;
+  }
+
+  const slotId = adElement.getAttribute('data-ad-slot') || 'unspecified';
+  const alreadyLoaded = adElement.dataset.adLoaded === 'true' || adElement.dataset.adsbygoogleStatus === 'done';
+
+  if (alreadyLoaded) {
+    return;
+  }
+
+  if (!isElementVisible(adElement)) {
+    if (attempt < MAX_AD_ATTEMPTS) {
+      const delay = Math.pow(2, attempt) * 250;
+      console.info(`Ad slot ${slotId} hidden; retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_AD_ATTEMPTS})`);
+      window.setTimeout(() => requestAdLoad(adElement, attempt + 1), delay);
+    } else {
+      console.warn(`Ad slot ${slotId} remained hidden; skipping load.`);
     }
-  });
+    return;
+  }
+
+  const width = adElement.offsetWidth;
+  if (!width) {
+    if (attempt < MAX_AD_ATTEMPTS) {
+      const delay = Math.pow(2, attempt) * 250;
+      console.info(`Ad slot ${slotId} has width 0, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_AD_ATTEMPTS})`);
+      window.setTimeout(() => requestAdLoad(adElement, attempt + 1), delay);
+    } else {
+      console.warn(`Ad slot ${slotId} never resolved to a visible width; skipping load.`);
+    }
+    return;
+  }
+
+  try {
+    window.adsbygoogle.push({});
+    adElement.dataset.adLoaded = 'true';
+    console.debug(`Ad slot ${slotId} initialised.`);
+  } catch (error) {
+    console.warn(`AdSense push failed for slot ${slotId}`, error);
+  }
+}
+
+function isElementVisible(element) {
+  if (!element) {
+    return false;
+  }
+
+  if (element.offsetParent !== null) {
+    return true;
+  }
+
+  const style = window.getComputedStyle(element);
+  if (style.position === 'fixed' && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+    return true;
+  }
+
+  return element.getClientRects().length > 0;
 }
 
 async function loadNewsDiary(isManualRefresh = false) {
@@ -336,6 +419,11 @@ async function loadNewsDiary(isManualRefresh = false) {
     }
 
     const payload = await response.json();
+    console.debug('News diary response payload:', payload);
+    const meta = payload && typeof payload === 'object' ? payload.meta : null;
+    if (meta) {
+      console.info('News diary meta:', meta);
+    }
     const entries = Array.isArray(payload.entries)
       ? payload.entries
           .map(entry => (typeof entry === 'string' ? entry.trim() : ''))
@@ -346,18 +434,33 @@ async function loadNewsDiary(isManualRefresh = false) {
       renderNewsEntries(entries);
       const timestamp = payload.updatedAt ? new Date(payload.updatedAt) : null;
       statusEl.textContent = timestamp ? `Updated at ${timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.` : 'Updated just now.';
+      if (meta && meta.source && meta.source !== 'ai') {
+        statusEl.textContent += ` (fallback source: ${meta.source})`;
+      }
+      if (meta && meta.error) {
+        statusEl.textContent += ` — ${meta.error}`;
+      }
+      statusEl.dataset.source = meta && meta.source ? meta.source : '';
+      statusEl.dataset.articleCount = meta && typeof meta.articleCount !== 'undefined' ? String(meta.articleCount) : '';
       newsLoaded = true;
       newsLoading = false;
       return;
     }
 
-    statusEl.textContent = 'No royal diary entries are available. Please refresh shortly.';
+    statusEl.textContent = 'The royal scribes are polishing the gold ink. Please refresh shortly.';
+    if (meta && meta.error) {
+      statusEl.textContent += ` (${meta.error})`;
+    }
+    statusEl.dataset.source = meta && meta.source ? meta.source : '';
+    statusEl.dataset.articleCount = meta && typeof meta.articleCount !== 'undefined' ? String(meta.articleCount) : '';
     newsLoaded = false;
     newsLoading = false;
     return;
   } catch (error) {
     console.error('Failed to load news diary', error);
     statusEl.textContent = 'The royal scribes are delayed. Please try again soon.';
+    statusEl.dataset.source = 'fetch-error';
+    statusEl.dataset.articleCount = '';
     newsLoaded = false;
     newsLoading = false;
   }
