@@ -77,11 +77,13 @@ function setActivePage(target) {
 }
 
 function displayRandomQuote() {
-  if (!Array.isArray(window.myQuotes) || window.myQuotes.length === 0) {
+  const quotes = getQuotes();
+  if (!quotes || quotes.length === 0) {
+    console.warn('No quotes available to display.');
     return;
   }
 
-  const quote = window.myQuotes[Math.floor(Math.random() * window.myQuotes.length)];
+  const quote = quotes[Math.floor(Math.random() * quotes.length)];
   const quoteTextEl = document.querySelector(selectors.quoteText);
   const quoteAuthorEl = document.querySelector(selectors.quoteAuthor);
 
@@ -92,6 +94,18 @@ function displayRandomQuote() {
   if (quoteAuthorEl) {
     quoteAuthorEl.textContent = `— ${quote.author}`;
   }
+}
+
+function getQuotes() {
+  if (typeof myQuotes !== 'undefined' && Array.isArray(myQuotes)) {
+    return myQuotes;
+  }
+
+  if (typeof window !== 'undefined' && Array.isArray(window.myQuotes)) {
+    return window.myQuotes;
+  }
+
+  return null;
 }
 
 function loadChatHistory() {
