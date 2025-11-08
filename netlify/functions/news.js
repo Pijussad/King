@@ -133,6 +133,10 @@ Return a JSON object with an \'entries\' array of strings. Do not include any ad
       }
     }
 
+    if (!entries.length) {
+      entries = articles.map((article, index) => `Royal bulletin ${index + 1}: ${article.title}`);
+    }
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
