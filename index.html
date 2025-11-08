@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DonaldKing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Lato:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="quotes.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-container">
+    <header class="hero">
+      <div class="hero-crest" aria-hidden="true">DK</div>
+      <h1>DonaldKing</h1>
+      <p class="hero-tagline">Commanding wisdom from the gilded throne.</p>
+    </header>
+    <main id="content">
+      <section id="quote-page" class="page-section">
+        <div class="quote-card">
+          <blockquote id="quote-text">Awaiting the King's decree...</blockquote>
+          <p id="quote-author" class="quote-author"></p>
+          <button id="new-quote-btn" type="button">New Decree</button>
+        </div>
+      </section>
+      <section id="chat-page" class="page-section hidden">
+        <div id="chat-window" class="chat-window" role="log" aria-live="polite" aria-label="Conversation with the King"></div>
+        <div id="thinking-indicator" class="thinking hidden">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Summoning the King...</span>
+        </div>
+        <form id="chat-form" autocomplete="off">
+          <label for="chat-input" class="visually-hidden">Address the King</label>
+          <input id="chat-input" type="text" name="message" placeholder="Present your words to the King..." maxlength="500">
+          <button type="submit" aria-label="Send message">Send &#128081;</button>
+        </form>
+      </section>
+    </main>
+  </div>
+  <nav id="bottom-nav">
+    <button id="nav-quote" type="button" class="active">Quote of the King</button>
+    <button id="nav-chat" type="button">Talk with the King</button>
+  </nav>
+</body>
+</html>
