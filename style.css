@@ -351,11 +351,27 @@ blockquote::before {
   }
 
   .hero {
-    display: none;
+    display: block;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .hero-crest {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 8px;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .hero-tagline {
+    font-size: 0.8rem;
   }
 
   .chat-window {
-    height: 320px;
+    height: 280px;
   }
 
   #bottom-nav {
